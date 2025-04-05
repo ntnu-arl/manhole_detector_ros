@@ -37,8 +37,8 @@
 #include <tf/transform_datatypes.h>
 #include <tf/transform_listener.h>
 
-#include "planner_msgs/ManholeDetection.h"
-#include "planner_msgs/MultipleManholeDetections.h"
+#include "planner_msgs/OpeningDetection.h"
+#include "planner_msgs/MultipleOpeningDetections.h"
 
 struct ManholeDetection
 {

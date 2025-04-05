@@ -30,7 +30,7 @@ ManholeDetector::ManholeDetector(const ros::NodeHandle &nh, const ros::NodeHandl
 	std::cout << "Contour pub created" << std::endl;
 
 	pub_detections_vis_ = nh_.advertise<geometry_msgs::PoseArray>("stable_detections_vis", 10);
-	pub_detections_ = nh_.advertise<planner_msgs::MultipleManholeDetections>("stable_detections", 10);
+	pub_detections_ = nh_.advertise<planner_msgs::MultipleOpeningDetections>("stable_detections", 10);
 	// pub_detections_ = nh_.advertise<nav_msgs::Path>("stable_detections", 10);
 
 	std::cout << "Detections pub created" << std::endl;
@@ -800,7 +800,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 
 	manhole_detections_ = detections_copy;
 
-	planner_msgs::MultipleManholeDetections detection_message;
+	planner_msgs::MultipleOpeningDetections detection_message;
 	// std::cout << "Publishing detections:\n";
 	for (int i = 0; i < new_stable_detections.size(); ++i)
 	{
@@ -819,7 +819,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 
 	geometry_msgs::PoseArray stable_detections;
 	stable_detections.header.frame_id = "world";
-	planner_msgs::MultipleManholeDetections stable_detections_msg;
+	planner_msgs::MultipleOpeningDetections stable_detections_msg;
 	// std::cout << "Vis: " << std::endl;
 	for (auto det : manhole_detections_)
 	{
