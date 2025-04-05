@@ -42,11 +42,6 @@ ManholeDetector::ManholeDetector(const ros::NodeHandle &nh, const ros::NodeHandl
 
 	tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(tf_buffer_);
 
-	// manhole_pos << 2.0, 3.2, 0.8; // Grid
-	// manhole_pos << 2.2, 3.5, 0.8; // height/d2
-	// manhole_pos << 5.0, 0.2, 0.14; // height/d1
-	// manhole_pos << 3.48, 0.05, 0.87; // Exhaustive h1
-	manhole_pos << 3.48, -0.018, 0.87; // Exhaustive h1
 }
 
 void ManholeDetector::findCorrespondingPointCloud(const sensor_msgs::ImageConstPtr &img, pcl::PointCloud<pcl::PointXYZ> &cloud)
@@ -62,25 +57,7 @@ void ManholeDetector::findCorrespondingPointCloud(const sensor_msgs::ImageConstP
 			closest_pcl = i;
 		}
 	}
-	// pcl::PointCloud<pcl::PointXYZ> ring_cloud;
-	// cloud.width = pcl_cloud_buffer_[closest_pcl].width;
-	// cloud.height = pcl_cloud_buffer_[closest_pcl].height / 2.0;
-	// pcl::fromROSMsg(pcl_cloud_buffer_[closest_pcl], ring_cloud);
-	// for(int i=0; i<ring_cloud.points.size(); ++i)
-	// {
-	// 	pcl::PointXYZ pt = ring_cloud.points[i];
-	// 	std::floor(pt.x);
-	// 	if((int)(std::floor((float)i/cloud.width)) %2 == 0)
-	// 	{
-	// 		pcl::PointXYZ pt_z;
-	// 		pt_z.x = pt.x;
-	// 		pt_z.y = pt.y;
-	// 		pt_z.z = pt.z;
-	// 		cloud.points.push_back(pt_z);
-	// 	}
-	// }
-	// cloud.header.frame_id = pcl_cloud_buffer_[closest_pcl].header.frame_id;
-	// std::cout << "Closest pcl" << closest_pcl << " | pcl buffer size: " << pcl_cloud_buffer_.size() << std::endl;
+
 	pcl::fromROSMsg(pcl_cloud_buffer_[closest_pcl], cloud);
 }
 
@@ -112,24 +89,9 @@ void ManholeDetector::depthImgCallback(const sensor_msgs::ImageConstPtr &img)
 	cv::Mat depth_img;
 
 	img_in = cv_bridge::toCvCopy(img, "mono16")->image;
-	// cv::Mat img_div2(img_in.rows/2, img_in.cols, CV_16U);
-	// for(int i=0; i<img_in.rows; ++i)
-	// {
-	// 	if(i%2 == 0)
-	// 	{
-	// 		for(int j=0; j<img_in.cols; ++j)
-	// 		{
-	// 			img_div2.at<uint16_t>(i/2, j) = img_in.at<uint16_t>(i, j);
-	// 		}
-	// 	}
-	// }
 
 	cv::Mat img_div2(img_in.rows, img_in.cols, CV_16U);
 	img_div2 = img_in;
-
-	// std::cout << "img: r x c: " << img_in.rows << " x " << img_in.cols << std::endl;
-	// std::cout << "pcl: r x c: " << corresponding_pcl.height << " x " << corresponding_pcl.width << std::endl;
-	// std::cout << "PCL size: " << corresponding_pcl.points.size() << std::endl;
 
 	double min = 0.0;
 	double max = 99999.0;
@@ -141,14 +103,7 @@ void ManholeDetector::depthImgCallback(const sensor_msgs::ImageConstPtr &img)
 	}
 	cv::Mat(img_div2 - min).convertTo(depth_img, CV_8U, 255.0 / (max - min));
 	cv::Mat temp;
-	// temp.create(img_in.size(), img_in.type());
-	// img_in.convertTo(depth_img, CV_8U, 1/256.0);
-	// depth_img = depth_img * 1.0f / 256.0f;
-	// cv::cvtColor(img_in, depth_img, CV_8U);
-	// depth_img.convertTo(depth_img, CV_8U, 1/256.0);
-	// cv::normalize(img_in, temp, cv::NormTypes::NORM_MINMAX);
-	// temp.convertTo(depth_img, CV_8U, 1.0/257.0);
-	// std::cout << "Depth img type " << depth_img.type() << std::endl;
+
 	cv::Mat contours_img(img_div2.rows, img_div2.cols, CV_8UC3), cropped_contours_img(depth_img.rows - (indices_to_crop_(1) - indices_to_crop_(0) + 1), depth_img.cols, CV_8UC3);
 	std::vector<std::vector<cv::Point>> detected_contours;
 
@@ -162,7 +117,6 @@ void ManholeDetector::depthImgCallback(const sensor_msgs::ImageConstPtr &img)
 
 		cv::Mat frame_mask;
 		cv::inRange(depth_img, 0, 0, frame_mask);
-		// std::cout << "After: " << cropped_img.rows << ", " << cropped_img.cols << std::endl;
 		if (pub_cropped_img_.getNumSubscribers() > 0)
 		{
 			sensor_msgs::Image::Ptr img_msg = cv_bridge::CvImage(img->header, "mono8", frame_mask).toImageMsg();
@@ -170,7 +124,6 @@ void ManholeDetector::depthImgCallback(const sensor_msgs::ImageConstPtr &img)
 		}
 	}
 
-	// std::cout << depth_img.at<int>(59+1, 256) << ", " << depth_img.at<int>(59+2, 256) << ", " << depth_img.at<int>(59+3, 256) << ", " << depth_img.at<int>(59+4, 256) << std::endl;
 
 	auto t1_c = std::chrono::high_resolution_clock::now();
   	auto t2_c = t1_c;
@@ -205,8 +158,6 @@ void ManholeDetector::depthImgCallback(const sensor_msgs::ImageConstPtr &img)
 
 		t2 = std::chrono::high_resolution_clock::now();
 		double dt = std::chrono::duration<double, std::milli>(t2 - t1).count();
-		// std::cout << "Contour detection time: " << dt_c << std::endl;
-		// std::cout << "Total Detection time: " << dt << "ms" << std::endl;
 
 		if (pub_contour_img_.getNumSubscribers() > 0)
 		{
@@ -225,7 +176,6 @@ void ManholeDetector::drawContours(cv::Mat &image, std::vector<std::vector<cv::P
 {
 	for (int i = 0; i < closed_contours.size(); ++i)
 	{
-		// cv::Scalar color = cv::Scalar(((double)i / closed_contours.size()) * 255, 255, (1 - (double)i / closed_contours.size()) * 255);
 		cv::Vec3b color(((double)i / closed_contours.size()) * 255, 255, (1 - (double)i / closed_contours.size()) * 255);
 		for (auto &p_orig : closed_contours[i])
 		{
@@ -244,11 +194,8 @@ void ManholeDetector::detectClosedContours(cv::Mat &img, cv::Mat &out_img, std::
 
 	cv::Mat temp;
 	temp.create(img.size(), img.type());
-	// std::cout << temp.type() << " " << temp.cols << "," << temp.rows << "\n";
 	temp = img;
-	// cv::blur(img, temp, cv::Size(1, 1));
 	cv::Canny(temp, edge_extracted_img, low_thres, low_thres * ratio, kernel_size);
-	// std::cout << "Canny done\n";
 
 	cv::cvtColor(img, out_img, cv::COLOR_GRAY2BGR);
 	cv::Mat closed_contour_img;
@@ -256,25 +203,17 @@ void ManholeDetector::detectClosedContours(cv::Mat &img, cv::Mat &out_img, std::
 	closed_contours.clear();
 	std::vector<cv::Vec4i> hierarchy;
 	cv::findContours(edge_extracted_img, contours, hierarchy, cv::RETR_CCOMP, cv::CHAIN_APPROX_NONE);
-	// std::cout << "contours.size: " << contours.size() << std::endl;
-	// for(int h=0; h<hierarchy.size(); ++h)
-	// {
-	// 	std::cout << hierarchy[h][0] << " " << hierarchy[h][1] << " " << hierarchy[h][2] << " " << hierarchy[h][3] << std::endl;
-	// }
+
 	
 	for (int i = 0; i < contours.size(); i = hierarchy[i][0]) // iterate through each contour.
 	{
 		cv::Rect r = cv::boundingRect(contours[i]);
-		// if(!(hierarchy[i][2] < 0))
-		// if(!(hierarchy[i][2] < 0 && hierarchy[i][3] < 0))
-		// std::cout << "Area: " << contourArea(contours[i]) << " Arc len t: " << arcLength(contours[i], true) << " Arc len f: " << arcLength(contours[i], false) << std::endl;
 		if (cv::contourArea(contours[i]) > cv::arcLength(contours[i], true))
 		{
 			closed_contours.push_back(contours[i]);
 		}
 	}
 	
-	// std::cout << "Num of closed contours found " << closed_contours.size() << std::endl;
 	cv::Mat contours_only, contours_only_dilated;
 	contours_only.create(img.size(), img.type());
 	contours_only.setTo(cv::Scalar(0));
@@ -282,23 +221,11 @@ void ManholeDetector::detectClosedContours(cv::Mat &img, cv::Mat &out_img, std::
 	for (int i = 0; i < closed_contours.size(); ++i)
 	{
 		cv::Scalar color = cv::Scalar(((double)i / closed_contours.size()) * 255, 255, (1 - (double)i / closed_contours.size()) * 255);
-		// cv::Scalar color(255, 255, 255);
-		// Scalar color = Scalar((i%2) * 255,255,0);
-		// cv::drawContours(out_img, closed_contours, i, color, 1, cv::LINE_4, hierarchy, 0);
-		// cv::drawContours(contours_only, closed_contours, i, color, 1, cv::LINE_4, hierarchy, 0);
+
 		cv::drawContours(out_img, closed_contours, i, color, 1, cv::LINE_4, hierarchy, 0);
 		cv::drawContours(contours_only, closed_contours, i, color, 1, cv::LINE_4, hierarchy, 0);
 	}
-	// for (int i = 0; i>=0; i = hierarchy[i][0])
-	// {
-	// 	cv::Scalar color = cv::Scalar(((double)i / closed_contours.size()) * 255, 255, (1 - (double)i / closed_contours.size()) * 255);
-	// 	// cv::Scalar color(255, 255, 255);
-	// 	// Scalar color = Scalar((i%2) * 255,255,0);
-	// 	// cv::drawContours(out_img, closed_contours, i, color, 1, cv::LINE_4, hierarchy, 0);
-	// 	// cv::drawContours(contours_only, closed_contours, i, color, 1, cv::LINE_4, hierarchy, 0);
-	// 	cv::drawContours(out_img, closed_contours, i, color, 1, cv::LINE_4, hierarchy);
-	// 	cv::drawContours(contours_only, closed_contours, i, color, 1, cv::LINE_4, hierarchy);
-	// }
+
 }
 
 void ManholeDetector::reindexContours(std::vector<std::vector<cv::Point>> &closed_contours, std::vector<std::vector<cv::Point>> &out_contours)
@@ -368,25 +295,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 	std::vector<std::pair<Eigen::Vector3d, double>> detections;
 
 	cv::Mat test_img = cv::Mat::zeros(cloud.height, cloud.width, CV_8U);
-	// for(int xt = cloud.width/2-50; xt<=cloud.width/2+50; xt += 5)
-	// {
-	// 	for(int yt = cloud.height/2 - 10; yt<=cloud.height/2+10; yt += 1)
-	// 	{
-	// for(int xt = 0; xt<=+50; xt += 10)
-	// {
-	// 	for(int yt = cloud.height/2 - 10; yt<=cloud.height/2+10; yt += 1)
-	// 	{
-	// 		all_contours_pcl->points.push_back(cloud.at(xt,yt));
-	// 		test_img.at<uchar>(yt,xt) = 255;
-	// 	}
-	// }
-
-	// std_msgs::Header hd;
-	// hd.frame_id = cloud.header.frame_id;
-	// sensor_msgs::Image::Ptr img_msg = cv_bridge::CvImage(hd, "mono8", test_img).toImageMsg();
-	// pub_contour_img_.publish(img_msg);
-
-	// std::cout << "--" << std::endl;
 
 	double total_plane_seg_time = 0.0;
 	
@@ -427,20 +335,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 		Eigen::Vector2i contour_centroid_2d;
 		contour_centroid_2d = Eigen::Vector2i::Zero();
 
-		pcl::PointCloud<pcl::PointXYZ>::Ptr contour_pcl(new pcl::PointCloud<pcl::PointXYZ>);
-
-		
-		// std::cout << "pcl: " << cloud.header.frame_id << ", " << cloud.header.stamp << " | ros: " << in_cloud.header.frame_id << ", " << in_cloud.header.stamp.toNSec() << std::endl;
-
-
-		// for(auto & p : contour)
-		// {
-		//   Eigen::Vector2i pv(p.x, p.y);
-		//   contour_centroid_2d += pv;
-		// }
-		// contour_centroid_2d /= contour.size();
-
-		
+		pcl::PointCloud<pcl::PointXYZ>::Ptr contour_pcl(new pcl::PointCloud<pcl::PointXYZ>);		
 
 		for (auto &p_orig : contour)
 		{
@@ -450,42 +345,8 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			int p_sel_x, p_sel_y;
 			int ring = p.y;
 			int col = (p.x + cloud.width - px_offsets_[ring]) % cloud.width;
-			// std::cout << "px: " << p.x << ", col: " << col << " | raw offset: " << px_offsets_[ring] << std::endl;
 			pcl::PointXYZ pi_0 = cloud.points[ring * cloud.width + col];
 
-			// if(image.at<uchar>(p_orig) <= 0)
-			// {
-			// 	std::cout << "Zero pixel value" << std::endl;
-			// 	continue;
-			// }
-
-
-			// int new_x = p_orig.x - col_offset_;
-			// int new_y = p_orig.y - row_offset_;
-
-			// std::cout << "new x,y: " << new_x << "," << new_y << std::endl;
-			// if (new_x < 0)
-			// {
-			// 	new_x = cloud.width - 1 - col_offset_ + p_orig.x;
-			// }
-			// else if (new_x >= cloud.width)
-			// {
-			// 	new_x = std::abs(col_offset_) - (cloud.width - 1 - p_orig.x);
-			// }
-
-			// if (new_y < 0)
-			// {
-			// 	new_y = cloud.height - 1 - row_offset_ + p_orig.y;
-			// }
-			// else if (new_y >= cloud.height)
-			// {
-			// 	new_y = std::abs(row_offset_) - (cloud.height - 1 - p_orig.y);
-			// }
-			// p.x = new_x;
-			// p.y = new_y;
-			// int p_sel_x, p_sel_y;
-			// pcl::PointXYZ pi_0 = cloud.at(p.x, p.y);
-			// // pcl::PointXYZ pi_0 = cloud.at(p.y, p.x);
 			int new_x, new_y;
 			pcl::PointXYZ pi = pi_0;
 			float min_dist = getDistance(pi_0);
@@ -495,7 +356,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			}
 			new_y = std::min(p.y + slack_, (int)cloud.height - 1);
 			new_x = (p.x + cloud.width - px_offsets_[new_y]) % cloud.width; 
-			// pcl::PointXYZ pi_t = cloud.at(p.x, std::min(p.y + slack_, (int)cloud.height - 1));
+
 			pcl::PointXYZ pi_t = cloud.points[new_y * cloud.width + new_x];
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
@@ -507,7 +368,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y =  std::max(p.y - slack_, 0);
 			new_x = (p.x + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(p.x, std::max(p.y - slack_, 0));
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -519,7 +380,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y =  p.y;
 			new_x = (std::min(p.x + slack_, (int)cloud.width - 1) + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(std::min(p.x + slack_, (int)cloud.width - 1), p.y);
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -530,7 +391,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y = p.y;
 			new_x = (std::max(p.x - slack_, 0) + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(std::max(p.x - slack_, 0), p.y);
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -541,7 +402,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y = std::max(p.y - slack_, 0);
 			new_x = (std::max(p.x - slack_, 0) + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(std::max(p.x - slack_, 0), std::max(p.y - slack_, 0));
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -552,7 +413,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y = std::max(p.y - slack_, 0);
 			new_x = (std::min(p.x + slack_, (int)cloud.width - 1) + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(std::min(p.x + slack_, (int)cloud.width - 1), std::max(p.y - slack_, 0));
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -563,7 +424,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y = std::min(p.y + slack_, (int)cloud.height - 1);
 			new_x = (std::max(p.x - slack_, 0) + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(std::max(p.x - slack_, 0), std::min(p.y + slack_, (int)cloud.height - 1));
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -574,7 +435,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			new_y = std::min(p.y + slack_, (int)cloud.height - 1);
 			new_x = (std::min(p.x + slack_, (int)cloud.width - 1) + cloud.width - px_offsets_[new_y]) % cloud.width;
 			pi_t = cloud.points[new_y * cloud.width + new_x];
-			// pi_t = cloud.at(std::min(p.x + slack_, (int)cloud.width - 1), std::min(p.y + slack_, (int)cloud.height - 1));
+
 			if (getDistance(pi_t) < min_dist && getDistance(pi_t) > min_manhole_robot_distance_ && std::abs(getDistance(pi_t) - min_dist) > 0.4)
 			{
 				pi = pi_t;
@@ -588,12 +449,9 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			// contour_centroid += pv.head(3);
 			contour_pcl->points.push_back(pi);
 			all_contours_pcl->points.push_back(pi);
-			// contour_pcl->points.push_back(pi_0);
-			// std::cout << "Before: " << p.x << "," << p.y << " | After: " << p_sel_x << "," << p_sel_y << std::endl;
-			// test_img.at<uchar>(p_sel_y, p_sel_x) = 255;
+
 			test_img.at<uchar>(p.y, p.x) = 255;
 		}
-		// std::cout << "contour size: " << contour.size() << std::endl;
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr filtered_contour_pcl(new pcl::PointCloud<pcl::PointXYZ>);
 		for (auto p : contour_pcl->points)
@@ -617,22 +475,13 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 		int debug_count = 0;
 		pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients);
 		pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-		// pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-		// // std::cout << "R" << debug_count++ << std::endl;
-		// tree->setInputCloud(contour_pcl);
-		// std::cout << "R" << debug_count++ << std::endl;
+
 		pcl::SACSegmentation<pcl::PointXYZ> seg;
 		seg.setOptimizeCoefficients(true);
-		// std::cout << "R" << debug_count++ << std::endl;
 		seg.setModelType(pcl::SACMODEL_PLANE);
-		// std::cout << "R" << debug_count++ << std::endl;
 		seg.setMethodType(pcl::SAC_RANSAC);
-		// std::cout << "R" << debug_count++ << std::endl;
 		seg.setDistanceThreshold(0.1);
-		// std::cout << "R" << debug_count++ << std::endl;
 		seg.setInputCloud(contour_pcl);
-		// std::cout << "R" << debug_count++ << std::endl;
-		// seg.setSamplesMaxDist(1.0, tree);
 		bool success = true;
 		try
 		{
@@ -650,16 +499,13 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 		{
 			continue;
 		}
-		// std::cout << "R" << debug_count++ << std::endl;
 
-		// std::cout << "Inliers: " << inliers->indices.size() << std::endl;
 		if(inliers->indices.empty())
 		{
 			continue;
 		}
 
 		Eigen::Vector3d plane_normal(coefficients->values[0], coefficients->values[1], coefficients->values[2]);
-		// std::cout << counter << ": Plane coefficients: " << coefficients->values[0] << " " << coefficients->values[1] << " " << coefficients->values[2] << " " << coefficients->values[3] << " \n";
 
 		Eigen::Quaterniond quat = Eigen::Quaterniond::FromTwoVectors(Eigen::Vector3d(1.0, 0.0, 0.0), plane_normal);
 
@@ -705,16 +551,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			// inlier_cloud_plane->insert(inlier_cloud_plane->begin(), pcl::PointXYZ(pt_eigen.x(), pt_eigen.y(), pt_eigen.z()));
 		}
 
-		// PCA
-		// pcl::PointCloud<pcl::PointXYZ>::ConstPtr cloudPtr_(inlier_cloud);
-		// pcl::PCA<pcl::PointXYZ> pcatest;
-		// pcatest.setInputCloud(cloudPtr_);
-
-		// Eigen::Matrix3d pca_vector = pcatest.getEigenVectors().cast<double>();  // get all eigen vectors
-		// Eigen::Vector3d pca_value = pcatest.getEigenValues().cast<double>();    // get all eigen values
-
-		// std::cout << counter << ": PCA result: vals: " << pca_value.transpose() << std::endl;
-		// std::cout << pca_vector << std::endl;
 
 		contour_centroid /= inlier_cloud->points.size();
 
@@ -723,22 +559,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			continue;
 		}
 		
-		// std::cout << "Quat calculated\n";
-
-		/* Interior points check */
-		// Eigen::Vector2i min_ind(cloud.width, cloud.height);
-		// Eigen::Vector2i max_ind(-1, -1);
-		// for (const auto &idx : inliers->indices)
-		// {
-		// 	int py = std::floor(idx / cloud.width);
-		// 	int col = idx - py * cloud.width;
-		// 	int px = col - (cloud.width - px_offsets_[py]);
-		// 	Eigen::Vector2i p(py, px);
-		// 	max_ind = max_ind.cwiseMax(p);
-		// 	min_ind = min_ind.cwiseMin(p);
-		// }
-		// Eigen::Vector3d bb = max - min;
-		// bb.minCoeff
 
 		pcl::CropBox<pcl::PointXYZ> crop_box_filter(true);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
@@ -764,36 +584,9 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 
 		/*************************/
 
-		
-		// Eigen::Matrix4d T_s_p = Eigen::Matrix4d::Zero();
-		// T_s_p.block(0,0,3,3) = quat.toRotationMatrix();
-		// T_s_p.block(0,3,3,1) = contour_centroid;
-		// T_s_p(3,3) = 1.0;
 
 		pcl::PointCloud<pcl::PointXYZ>::Ptr inlier_cloud_plane(new pcl::PointCloud<pcl::PointXYZ>);
-		// Eigen::Vector3d max(-9999, -99999, -9999), min(9999, 9999, 9999);
-		// for (const auto &idx : inliers->indices)
-		// {
-		// 	// inlier_cloud->insert(inlier_cloud->begin(), contour_pcl->points[idx]);
-		// 	Eigen::Vector3d pt_eigen(contour_pcl->points[idx].x, contour_pcl->points[idx].y, contour_pcl->points[idx].z);
-		// 	// Eigen::Vector3d pt_tfed = quat.toRotationMatrix() * pt_eigen + contour_centroid;
-		// 	Eigen::Vector3d pt_tfed = quat.toRotationMatrix().inverse() * pt_eigen;
-		// 	max = max.cwiseMax(pt_tfed);
-		// 	min = min.cwiseMin(pt_tfed);
-		// 	inlier_cloud_plane->insert(inlier_cloud_plane->begin(), pcl::PointXYZ(pt_eigen.x(), pt_eigen.y(), pt_eigen.z()));
-		// 	// all_contours_pcl->insert(all_contours_pcl->begin(), contour_pcl->points[idx]);
-		// 	// all_contours_pcl->insert(all_contours_pcl->begin(), pcl::PointXYZ(pt_tfed.x(),pt_tfed.y(), pt_tfed.z()));
-		// }
-		// std::cout << "point clouds created\n";
-		// std::cout << counter << ":\n";
-		// for(auto pt_c : contour_pcl->points)
-		// {
-		// 	Eigen::Vector3d pt_eigen(pt_c.x, pt_c.y, pt_c.z);
-		// 	Eigen::Vector3d pt_tfed = quat.toRotationMatrix() * pt_eigen + contour_centroid;
-		// 	max = max.cwiseMax(pt_tfed);
-		// 	min = min.cwiseMin(pt_tfed);
-		// }
-
+		
 		geometry_msgs::PoseStamped centroid;
 		centroid.pose.position.x = contour_centroid.x();
 		centroid.pose.position.y = contour_centroid.y();
@@ -808,11 +601,9 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 
 		Eigen::Vector3d bounding_box = (max - min);
 		pcl::PointCloud<pcl::PointXYZ>::Ptr detection_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-		// if (bounding_box.y() > 0.5 && bounding_box.y() < 0.9 && bounding_box.z() > 0.7 && bounding_box.z() < 1.1 && bounding_box.x() < 0.6)
-		// std::cout << counter << ": Bounding box: " << bounding_box.transpose() << ", inlier ratio: " << (double)inliers->indices.size()/(double)(contour_pcl->points.size()) << std::endl;
+
 		if ((bounding_box.array() > manhole_bounding_box_size_min_.array()).all() && (bounding_box.array() < manhole_bounding_box_size_max_.array()).all())
 		{
-			// std::cout << counter << ": Bounding box: " << bounding_box.transpose() << ", inlier ratio: " << (double)inliers->indices.size()/(double)(contour_pcl->points.size()) << "|" << std::endl;
 			geometry_msgs::PoseStamped centroid_W;
 			tf2::doTransform(centroid, centroid_W, T_W_sensor);
 			// tf_buffer_.transform(centroid, centroid_W, "world", ros::Duration(0));
@@ -839,19 +630,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			}
 		}
 
-		// for(auto &pt : contour_pcl->points)
-		// {
-		//   pcl::PointXYZI pti;
-		//   pti.x = pt.x;
-		//   pti.y = pt.y;
-		//   pti.z = pt.z;
-		//   pti.intensity = counter * 100;
-		//   all_contours_pcl_intensity->points.push_back(pti);
-		// }
-
-		// *all_contours_pcl += *contour_pcl;
-		// *all_contours_pcl += *inlier_cloud_plane;
-		// *all_contours_pcl += *inlier_cloud;
 		for (auto pt : detection_cloud->points)
 		// for (auto pt : inlier_cloud_plane->points)
 		// for (auto pt : contour_pcl->points)
@@ -865,13 +643,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 		}
 	}
 
-	/* Publishing test image */
-	// std_msgs::Header hd;
-	// hd.frame_id = cloud.header.frame_id;
-	// sensor_msgs::Image::Ptr img_msg = cv_bridge::CvImage(hd, "mono8", test_img).toImageMsg();
-	// pub_contour_img_.publish(img_msg);
-
-	// std::cout << "Number of manholes in this instance: " << num_manholes << std::endl;
 	for (auto det : detections)
 	{
 		// std::cout << det.first.transpose() << " " << det.second << std::endl;
@@ -989,11 +760,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 					// std::cout << "New stable detection: ID: " << det.id << std::endl;
 					new_stable_detections.push_back(det);
 				}
-				// std::cout << "New: ID: " << det.id << ": Detections: " << std::endl;
-				// for (auto pt : det.detections)
-				// {
-				// 	std::cout << pt.transpose() << std::endl;
-				// }
 			}
 		}
 		else
@@ -1029,11 +795,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			det.mean_pos = new_mean_pos;
 			det.mean_yaw = new_mean_yaw;
 			detections_copy.push_back(det);
-			// std::cout << "Old: ID: " << det.id << "Detections: " << std::endl;
-			// for (auto pt : det.detections)
-			// {
-			// 	std::cout << pt.transpose() << std::endl;
-			// }
 		}
 	}
 
@@ -1045,9 +806,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 	{
 		planner_msgs::ManholeDetection det;
 		det.id = new_stable_detections[i].id;
-		// std::cout << "ID: " << det.id
-		// 		  << " pos: " << new_stable_detections[i].mean_pos.x() << " " << new_stable_detections[i].mean_pos.y() << " " << new_stable_detections[i].mean_pos.z()
-		// 		  << " num stable dets: " << new_stable_detections[i].detections.size() << std::endl;
+
 		tf::Quaternion quat;
 		quat.setEuler(0.0, 0.0, new_stable_detections[i].mean_yaw);
 		tf::Vector3 origin(new_stable_detections[i].mean_pos[0], new_stable_detections[i].mean_pos[1], new_stable_detections[i].mean_pos[2]);
@@ -1057,10 +816,6 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 		det.pose = pose;
 		detection_message.multiple_detections.push_back(det);
 	}
-	// if (!new_stable_detections.empty())
-	// 	pub_detections_.publish(detection_message);
-
-	// std::cout << "Number of new stable manholes: " << new_stable_detections.size() << std::endl;
 
 	geometry_msgs::PoseArray stable_detections;
 	stable_detections.header.frame_id = "world";
@@ -1086,88 +841,13 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 			det_msg.pose = pose;
 
 			stable_detections_msg.multiple_detections.push_back(det_msg);
-
-			// std::cout << "ID: " << det.id << " pos: " << det.mean_pos.x() << " " << det.mean_pos.y() << " " << det.mean_pos.z()
-			// 		  << " num stable dets: " << det.detections.size() << std::endl;
 		}
 	}
 
 	// std::cout << "------------" << std::endl;
 	pub_detections_vis_.publish(stable_detections);
 	pub_detections_.publish(stable_detections_msg);
-	// planner_msgs::ManholeDetection new_detection
-
-	// all_contours_pcl_intensity->points.clear();
-	// for(int yi=0; yi<64; ++yi)
-	// {
-	// 	// pcl::PointXYZ pt;
-	// 	// if(yi%2 == 0)
-	// 	// {
-	// 	// 	pt = cloud.at(370, yi);	
-	// 	// }
-	// 	// else 
-	// 	// {
-	// 	// 	pt = cloud.at(390, yi);
-	// 	// }
-	// 	int ring = yi;
-	// 	int col = 390 + cloud.width - px_offsets_[cloud.height - 1 - ring] % cloud.width;
-	// 	pcl::PointXYZ pt = cloud.points[ring * cloud.width + col];
-		
-	// 	pcl::PointXYZI pt_i;
-	// 	pt_i.x = pt.x;
-	// 	pt_i.y = pt.y;
-	// 	pt_i.z = pt.z;
-	// 	pt_i.intensity = 1000;
-	// 	all_contours_pcl_intensity->points.push_back(pt_i);
-	// }
-	// for(int yi=0; yi<64; ++yi)
-	// {
-	// 	// pcl::PointXYZ pt;
-	// 	// if(yi%2 == 0)
-	// 	// {
-	// 	// 	pt = cloud.at(370, yi);	
-	// 	// }
-	// 	// else 
-	// 	// {
-	// 	// 	pt = cloud.at(390, yi);
-	// 	// }
-	// 	int ring = yi;
-	// 	int col = 90 + cloud.width - px_offsets_[cloud.height - 1 - ring] % cloud.width;
-	// 	pcl::PointXYZ pt = cloud.points[ring * cloud.width + col];
-		
-	// 	pcl::PointXYZI pt_i;
-	// 	pt_i.x = pt.x;
-	// 	pt_i.y = pt.y;
-	// 	pt_i.z = pt.z;
-	// 	pt_i.intensity = 2000;
-	// 	all_contours_pcl_intensity->points.push_back(pt_i);
-	// }
-	// for(int yi=0; yi<64; ++yi)
-	// {
-	// 	// pcl::PointXYZ pt;
-	// 	// if(yi%2 == 0)
-	// 	// {
-	// 	// 	pt = cloud.at(370, yi);	
-	// 	// }
-	// 	// else 
-	// 	// {
-	// 	// 	pt = cloud.at(390, yi);
-	// 	// }
-	// 	int ring = yi;
-	// 	int col = 510 + cloud.width - px_offsets_[cloud.height - 1 - ring] % cloud.width;
-	// 	pcl::PointXYZ pt = cloud.points[ring * cloud.width + col];
-		
-	// 	pcl::PointXYZI pt_i;
-	// 	pt_i.x = pt.x;
-	// 	pt_i.y = pt.y;
-	// 	pt_i.z = pt.z;
-	// 	pt_i.intensity = 3000;
-	// 	all_contours_pcl_intensity->points.push_back(pt_i);
-	// }
-
-	// std::cout << "Plane seg time: " << total_plane_seg_time << "ms" << std::endl;
-
-	// if(!first_detection_ && stable_detections.poses.size() > 1) {
+	
 		if(!first_detection_ && !stable_detections.poses.empty()) {
 		first_detection_ = true;
 		first_mh_location_ << stable_detections.poses[0].position.x, stable_detections.poses[0].position.y, stable_detections.poses[0].position.z;
@@ -1210,13 +890,9 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 
 	sensor_msgs::PointCloud2 cloud_msg;
 	all_contours_pcl->header.frame_id = cloud.header.frame_id;
-	// all_contours_pcl->header.frame_id = "world";
-	// all_contours_pcl_intensity->header.frame_id = cloud.header.frame_id;
-	// pcl::toROSMsg(*all_contours_pcl, cloud_msg);
 	pcl::toROSMsg(*all_contours_pcl_intensity, cloud_msg);
 	cloud_msg.header.frame_id = cloud.header.frame_id;
-	// cloud_msg.header.stamp = ros::Time::now();
-	// cloud_msg.header.frame_id = "world";
+	
 	pub_contour_pcl_.publish(cloud_msg);
 }
 

@@ -28,7 +28,6 @@ cs_add_library(${PROJECT_NAME}
 	src/manhole_detector.cpp
 )
 
-# Frontier Detector Node
 cs_add_executable(manhole_detector_node src/manhole_detector_node.cpp)
 target_link_libraries(manhole_detector_node ${PROJECT_NAME} ${OpenCV_LIBRARIES} ${PCL_LIBRARIES})
 
