@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+	<arg name="point_cloud_topic_name" 	default="/rmf_obelix/velodyne_points"/>
+	<arg name="depth_image_topic_name" 	default="/img_node/range_image"/>
+	
+	<node pkg="manhole_detector" type="depth_img_publisher" name="depth_img_publisher" output="screen">
+		<remap from="input_cloud" to="$(arg point_cloud_topic_name)" />
+		<remap from="depth_img_out" to="$(arg depth_image_topic_name)" />
+	</node>
+</launch>

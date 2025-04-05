@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+	<arg name="config_file" default="$(find manhole_detector)/config/manhole_detector.yaml"/>
+	<!-- <arg name="point_cloud_topic_name" 	default="/os_cloud_node/points"/>
+	<arg name="depth_image_topic_name" 	default="/img_node/range_image"/> -->
+	<arg name="point_cloud_topic_name" 	default="/rmf_obelix/velodyne_points"/>
+	<arg name="depth_image_topic_name" 	default="/img_node/range_image"/>
+	
+	<node pkg="manhole_detector" type="manhole_detector_node" name="manhole_detector_node" output="screen">
+		<rosparam command="load" file="$(arg config_file)" />
+		<remap from="pcl_in" to="$(arg point_cloud_topic_name)" />
+		<remap from="depth_img_in" to="$(arg depth_image_topic_name)" />
+		<remap from="img_out" to="lidar_depth_image" />
+	</node>
+</launch>
