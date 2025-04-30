@@ -804,7 +804,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 	// std::cout << "Publishing detections:\n";
 	for (int i = 0; i < new_stable_detections.size(); ++i)
 	{
-		planner_msgs::ManholeDetection det;
+		planner_msgs::OpeningDetection det;
 		det.id = new_stable_detections[i].id;
 
 		tf::Quaternion quat;
@@ -825,7 +825,7 @@ void ManholeDetector::filterContours(std::vector<std::vector<cv::Point>> &closed
 	{
 		if (det.seen_sufficiently)
 		{
-			planner_msgs::ManholeDetection det_msg;
+			planner_msgs::OpeningDetection det_msg;
 			det_msg.id = det.id;
 			geometry_msgs::Pose pose;
 			pose.position.x = det.mean_pos.x();
