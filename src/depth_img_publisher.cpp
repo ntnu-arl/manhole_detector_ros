@@ -37,22 +37,31 @@ void cloudCallback(const sensor_msgs::PointCloud2 cloud)
 	cv::Mat depth_img;
 	pcl::PointCloud<pcl::PointXYZ> cloud_pcl;
 	pcl::fromROSMsg(cloud, cloud_pcl);
-	double max_range = 20.0;
+	double max_range = 5.0;
 	// std::cout << "cloud height: " << cloud.height << " cloud width: " << cloud.width << std::endl;
-	// depth_img = cv::Mat::zeros(cloud.width, cloud.height, CV_8U);
-	depth_img = cv::Mat::zeros(cloud.height, cloud.width, CV_8U);
+	// depth_img = cv::Mat::zeros(cloud.width, cloud.height, CV_32F);
+	depth_img = cv::Mat::zeros(cloud.height, cloud.width, CV_32F);
 	for(int i=0; i<cloud.height; ++i)
 	{
 		for(int j=0; j<cloud.width; ++j)
 		{
 			pcl::PointXYZ pt = cloud_pcl.at(j,i);
-			double r = std::sqrt(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
-			if(r > max_range) r = max_range;
-			depth_img.at<uchar>(i, j) = uchar(255*r/max_range);
+			if(!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z)) {
+				depth_img.at<float>(i, j) = float(max_range);
+				continue;
+			}
+			else {
+				double r = std::sqrt(pt.x*pt.x + pt.y*pt.y + pt.z*pt.z);
+				if(r > max_range) r = max_range;
+				depth_img.at<float>(i, j) = float(r);
+			}
 		}
 	}
 	// std::cout << "1" << std::endl;
-	sensor_msgs::Image::Ptr img_msg = cv_bridge::CvImage(cloud.header, "mono8", depth_img).toImageMsg();
+	cv::Mat flipped_image;
+	cv::flip(depth_img, flipped_image, 0);
+	cv::flip(flipped_image, flipped_image, 1);
+	sensor_msgs::Image::Ptr img_msg = cv_bridge::CvImage(cloud.header, "32FC1", flipped_image).toImageMsg();
 	// std::cout << "2" << std::endl;
 	depth_img_pub.publish(img_msg);
 }
